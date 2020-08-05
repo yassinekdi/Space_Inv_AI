@@ -2,31 +2,28 @@ import pygame
 from data import *
 from Objects import *
 
-def redrawGameWindow(win,laser_on):
+def redrawGameWindow(win,laser_on,player):
 	global SCORE
-	global Me 
 
 	win.blit(BG,(0,0))
-	if Me.is_alive:
-		Me.move()
+	if player.is_alive:
+		player.move()
 
-		probability_shooting = 1/120
+		probability_shooting = 1/200
 		for enemy in Enemies:
 			if enemy.is_alive:
 				enemy.move()
 				enemy.shoot(probability_shooting)
-				enemy.collision(Me.lasers)
-				Me.collision(enemy)
+				enemy.collision(player.lasers)
+				player.collision(enemy)
 			else:
 				SCORE +=1
 				Enemies.remove(enemy)
 			
 		if laser_on:
-			Me.shoot()	
+			player.shoot()	
 
-		# Draw
-		# if Me.is_alive:
-		Me.draw(win)
+		player.draw(win)
 
 		for enemy in Enemies:
 			enemy.draw(win)
@@ -35,7 +32,7 @@ def redrawGameWindow(win,laser_on):
 		words = ['Health: ','Score: ', 'High score: ']
 		words_x = WIN_WIDTH + 10
 		words_y = []
-		words2 = [str(Me.health-Me.hit),str(SCORE),str(HIGHEST_SCORE)]
+		words2 = [str(player.health-player.hit),str(SCORE),str(HIGHEST_SCORE)]
 		words2_x = words_x + 10
 		words2_y = []
 
@@ -55,18 +52,9 @@ def redrawGameWindow(win,laser_on):
 		text = font3.render('GAME OVER ',1, YELLOW)
 		txt_width,txt_height = text.get_rect().size
 		win.blit(text, ((WIN_WIDTH+MENU_WIDTH-txt_width)/2, (WIN_HEIGHT-txt_height)/2))	
-		del Me
-		with open('SCORE.txt','a') as file:
-			file.write('EPISODE: '+ str(EPISODE) + '\n')
-			file.write(str(SCORE) + '\n')
+		del player
+		
 
-	pygame.display.update()
-
-def redrawGameWindow2(win):
-	win.blit(BG,(0,0))
-	text = font3.render('GAME OVER ',1, YELLOW)
-	txt_width,txt_height = text.get_rect().size
-	win.blit(text, ((WIN_WIDTH+MENU_WIDTH-txt_width)/2, (WIN_HEIGHT-txt_height)/2))	
 	pygame.display.update()
 
 # Mainloop ----------------------------------
@@ -97,9 +85,10 @@ while run:
 		new_enemy.vely = 15
 		Enemies.append(new_enemy)
 
-	try:
-		redrawGameWindow(win,laser_on)
-	except:
-		redrawGameWindow2(win)
+	redrawGameWindow(win,laser_on,Me)
+
+with open('SCORE.txt','a') as file:
+	file.write('EPISODE: '+ str(EPISODE) + '\n')
+	file.write(str(SCORE) + '\n')
 
 pygame.quit()

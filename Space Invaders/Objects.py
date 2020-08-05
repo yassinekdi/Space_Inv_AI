@@ -22,7 +22,7 @@ class Gameobject:
 		return (np.abs(other.posx-self.posx), np.abs(other.posy - self.posy))
 
 	def __eq__(self,other):
-		return self.x == other.x and self.y == other.y
+		return self.posx == other.posx and self.posy == other.posy
 
 
 class player(Gameobject):
