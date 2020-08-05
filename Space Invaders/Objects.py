@@ -2,6 +2,8 @@ import pygame
 from numpy import random
 from numpy.random import randint
 from data import *
+from functions import *
+
 
 class Gameobject:
 	def __init__(self,posx,posy,img):
@@ -11,7 +13,6 @@ class Gameobject:
 		self.img = img
 		self.left = False
 		self.right = False
-		# self.hitbox = (self.x + 17, self.y + 11, 29, 52)
 		self.velx = 200
 		self.vely =200
 		self.is_alive=True
@@ -20,9 +21,6 @@ class Gameobject:
 
 	def __sub__(self, other):
 		return (np.abs(other.posx-self.posx), np.abs(other.posy - self.posy))
-
-	def __eq__(self,other):
-		return self.posx == other.posx and self.posy == other.posy
 
 
 class player(Gameobject):
@@ -62,10 +60,7 @@ class player(Gameobject):
 
 	def collision(self,enemy):
 		for laser in enemy.lasers:
-			Cx = laser.posx+laser_width >= self.posx and laser.posx <= self.posx + enemy_width
-			Cy = laser.posy + laser_height	>= self.posy and laser.posy <= self.posy + enemy_height
-
-			if Cx and Cy:
+			if touch(laser,self):
 				enemy.lasers.remove(laser)
 				self.hit +=1
 				if self.hit >= self.health:
@@ -105,10 +100,8 @@ class enemy(Gameobject):
 
 	def collision(self,laser_list):
 		for laser in laser_list:
-			Cx = laser.posx+laser_width >= self.posx and laser.posx <= self.posx + enemy_width
-			Cy = laser.posy + laser_height	>= self.posy and laser.posy <= self.posy + enemy_height
 
-			if Cx and Cy:
+			if touch(laser,self):
 				laser_list.remove(laser)
 				self.hit +=1
 				if self.hit >= self.health:
