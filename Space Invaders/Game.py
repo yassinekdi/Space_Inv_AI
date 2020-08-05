@@ -2,7 +2,7 @@ import pygame
 from data import *
 from Objects import *
 
-def redrawGameWindow(win,laser_on,player):
+def redrawGameWindow(win,laser_on,player,enemies):
 	global SCORE
 
 	win.blit(BG,(0,0))
@@ -10,7 +10,7 @@ def redrawGameWindow(win,laser_on,player):
 		player.move()
 
 		probability_shooting = 1/200
-		for enemy in Enemies:
+		for enemy in enemies:
 			if enemy.is_alive:
 				enemy.move()
 				enemy.shoot(probability_shooting)
@@ -18,14 +18,14 @@ def redrawGameWindow(win,laser_on,player):
 				player.collision(enemy)
 			else:
 				SCORE +=1
-				Enemies.remove(enemy)
+				enemies.remove(enemy)
 			
 		if laser_on:
 			player.shoot()	
 
 		player.draw(win)
 
-		for enemy in Enemies:
+		for enemy in enemies:
 			enemy.draw(win)
 
 		# STATS
@@ -85,7 +85,7 @@ while run:
 		new_enemy.vely = 15
 		Enemies.append(new_enemy)
 
-	redrawGameWindow(win,laser_on,Me)
+	redrawGameWindow(win,laser_on,Me,Enemies)
 
 with open('SCORE.txt','a') as file:
 	file.write('EPISODE: '+ str(EPISODE) + '\n')
