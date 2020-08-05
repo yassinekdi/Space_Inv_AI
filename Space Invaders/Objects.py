@@ -18,6 +18,11 @@ class Gameobject:
 		self.health = ENEMY_HEALTH	
 		self.hit = 0
 
+	def __sub__(self, other):
+		return (np.abs(other.posx-self.posx), np.abs(other.posy - self.posy))
+
+	def __eq__(self,other):
+		return self.x == other.x and self.y == other.y
 
 
 class player(Gameobject):

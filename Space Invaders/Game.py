@@ -75,7 +75,7 @@ Me.health = PLAYER_HEALTH
 
 Enemies = []
 
-for _ in NB_ENEMIES :
+for _ in range(NB_ENEMIES):
 	new_enemy = enemy(randint(WIN_WIDTH),-enemy_height,enemy_img)
 	new_enemy.vely = 15
 	Enemies.append(new_enemy)
@@ -92,11 +92,10 @@ while run:
 			if keys[pygame.K_SPACE]:
 				laser_on=True
 
-	if len(Enemies)<=4:
-		for _ in NB_ENEMIES :
-			new_enemy = enemy(randint(WIN_WIDTH),-enemy_height,enemy_img)
-			new_enemy.vely = 15
-			Enemies.append(new_enemy)
+	while len(Enemies)< NB_ENEMIES:
+		new_enemy = enemy(randint(WIN_WIDTH),-enemy_height,enemy_img)
+		new_enemy.vely = 15
+		Enemies.append(new_enemy)
 
 	try:
 		redrawGameWindow(win,laser_on)
