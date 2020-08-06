@@ -23,17 +23,9 @@ run = True
 DT = 1/FRAME_RATE
 
 # STATS
+SCORE = 0
 HIGHEST_SCORE = 0
 EPISODE = 1
-with open('SCORE.txt','r') as file:
-	 reader = list(csv.reader(file))
-	 if len(reader) >=2:
-	 	ind = np.arange(1,len(reader),step=2)
-	 	EPISODE = int(reader[-2][0][-1])+1	 	
-	 	scores = [int(reader[i][0]) for i in ind]
-	 	HIGHEST_SCORE = max(scores)
-
-SCORE = 0
 
 
 pygame.init()
