@@ -31,10 +31,11 @@ EPISODE = 1
 NB_MINIMUM_CLOSEST_LASERS = 4
 
 # ACTIONS
-ACTIONS = {"still":[1,0,0,0],
-		   "right": [0,1,0,0],
-		   "left": [0,0,1,0], 
-		   "shoot": [0,0,0,1]}
+# ACTIONS = {"still":[1,0,0,0],
+# 		   "right": [0,1,0,0],
+# 		   "left": [0,0,1,0], 
+# 		   "shoot": [0,0,0,1]}
+ACTIONS = [0,1,2,3]
 
 with open('Game/SCORE.txt','r') as file:
 	 reader = list(csv.reader(file))

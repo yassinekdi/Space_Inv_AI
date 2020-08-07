@@ -58,7 +58,7 @@ def redrawGameWindow(win,laser_on,agent,enemies):
 		win.blit(text, ((WIN_WIDTH+MENU_WIDTH-txt_width)/2, (WIN_HEIGHT-txt_height)/2))	
 		win.blit(text2, ((WIN_WIDTH+MENU_WIDTH-txt2_width)/2, (WIN_HEIGHT-txt_height)/2+100))	
 		del agent
-		# pygame.time.delay(500)
+
 		keys = pygame.key.get_pressed()
 		if keys[pygame.K_SPACE]:
 			return False

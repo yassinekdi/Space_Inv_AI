@@ -22,6 +22,12 @@ class Gameobject:
 	def __sub__(self, other):
 		return (np.abs(other.posx-self.posx), np.abs(other.posy - self.posy))
 
+	def is_hit(self,other):
+		for laser in other.lasers:
+			if touch(laser,self):
+				return True
+			else:
+				return False
 
 class player(Gameobject):
 	def __init__(self,*args,**kwargs):
@@ -42,21 +48,6 @@ class player(Gameobject):
 			win.blit(laser.img,(laser.posx,laser.posy))	
 		win.blit(self.img,(self.posx,self.posy))
 
-	def move(self):
-		# get state of all keyboard buttons
-		keys = pygame.key.get_pressed()
-
-		if self.posx >= WIN_WIDTH-enemy_width:
-			self.posx = WIN_WIDTH-enemy_width
-		if self.posx <= 0:
-			self.posx = 0
-
-		if keys[pygame.K_LEFT]:
-			self.posx-= self.velx*DT
-		if keys[pygame.K_RIGHT]:
-			self.posx+= self.velx*DT
-
-
 	def collision(self,enemy):
 		for laser in enemy.lasers:
 			if touch(laser,self):
@@ -66,7 +57,6 @@ class player(Gameobject):
 					self.is_alive = False
 					self.posx = 1000000
 					self.posy = 1000000
-
 
 class enemy(Gameobject):
 	def __init__(self,*args,**kwargs):
@@ -99,10 +89,10 @@ class enemy(Gameobject):
 		self.posy += self.vely*DT
 		
 
-	def collision(self,laser_list):
-		for laser in laser_list:
+	def collision(self,player):
+		for laser in player.lasers:
 			if touch(laser,self):
-				laser_list.remove(laser)
+				player.lasers.remove(laser)
 				self.hit +=1
 				if self.hit >= self.health:
 					self.is_alive = False

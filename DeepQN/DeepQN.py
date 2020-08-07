@@ -1,29 +1,90 @@
 
 import pygame
 import sys
-from random import choice
+from random import choice, sample
 from Game.data import *
 from Game.Objects import *
 from Game.functions import *
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.optimizers import Adam
+from collections import deque
 # from PIL import Image
 # import matplotlib.pyplot as plt
 
 
 class DQNAgent:
-	def __init__(self):
-		pass
+	def __init__(self,params):
+		self.replay_memory = deque(maxlen=params['replay_memory_size'])		
+		self.batch_size = params['batch_size']
+		self.gamma = params['gamma']
 
-	def create_model(self):
-		pass
+		self.input_layer = params['state_space']
+		self.first_layer = params['first_layer_size']
+		self.second_layer = params['second_layer_size']
+		self.output_layer = params['action_space']
 
-	def update_replay_memory(self):
-		pass
+		self.model = self.new_model()
 
-	def get_q_value(self,state):
-		pass
+		self.target_model = self.new_model()
+		self.target_model.set_weights(self.model.get_weights())
+		self.target_update_counter = 0
+		self.update_target_every = params['update_target_every']
 
-	def train(self,terminalstate,step):
-		pass
+	def new_model(self):
+		model = Sequential()
+		model.add(Dense(units=self.first_layer, activation = 'relu', input_dim=self.input_layer))
+		model.add(Dense(units=self.second_layer, activation = 'relu'))
+		model.add(Dense(units=self.output_layer, activation = 'softmax'))
+		model.compile(loss='mse', optimizer=Adam(self.gamma), metrics=["accuracy"])
+		return model
+
+	def update_replay_memory(self,transition):
+		self.replay_memory.append(transition)
+
+	def get_q_values(self,state):
+		return self.model.predict(np.array(state))
+
+	def train(self,termination):
+		# if len(self.replay_memory) < min_replay_memory_size:
+		# 	return
+
+		batch = random.sample(self.replay_memory,self.batch_size)
+
+
+		current_states = [transition[0] for transition in batch]
+		# from [(x1,y1), (x2,y2),...] fo [x1,y1,x2,y2...]
+		current_states_transformed = np.array([elt for elt2 in current_states for elt in elt2])/WIN_WIDTH
+		current_qs_values = self.model.predict(current_states_transformed)
+
+		next_states = [transition[3] for transition in batch]
+		next_states_transformed = np.array([elt for elt2 in next_states for elt in elt2])/WIN_WIDTH
+		next_qs_values = self.target_model.predict(next_states_transformed)
+
+		X,y = [],[]
+
+		for ind,(current_state,action,reward,next_state,done) in enumerate(batch):
+			if not done:
+				max_future_q = np.max(next_qs_values[index])
+				new_q = reward + self.gamma.max_future_q
+			else:
+				new_q = reward
+			current_qs = current_qs_values[index]
+			current_qs[action] = new_q
+
+			# current_state_transformed =  
+
+			X.append(current_state)
+			y.append(current_qs)
+		X_transformed = np.array([elt for elt2 in X for elt in elt2])/WIN_WIDTH
+		self.model.fit(X_transformed,np.array(y),batch_size=self.batch_size, verbose=0, 
+			shuffle=False)
+
+		if termination:
+			self.target_update_counter+=1
+		if self.target_update_counter > self.update_target_every:
+			self.target_model.set_weights(self.model.get_weights())
+			self.target_update_counter=0
 
 
 class Space_env:
@@ -33,15 +94,17 @@ class Space_env:
 	PLAYER_HIT_REWARD = -15
 	ENEMY_HIT_REWARD = 15
 	ENEMY_KILLED_REWARD = 20
+	PLAYER_ALIVE_REWARD = 10
 
 	# Dimensions
 	STATE_SPACE = 14  # (enemy position - player position) 10 times (10 enemies) 
 					  # + 4 min(laser enemy position - player position) (the 4 closest lasers)
 	ACTION_SPACE = 4 # Left right still shoot
-	ACTIONS = {"still":[1,0,0,0],
-			   "right": [0,1,0,0],
-			   "left": [0,0,1,0], 
-			   "shoot": [0,0,0,1]}
+	# ACTIONS = {"still":[1,0,0,0],
+	# 		   "right": [0,1,0,0],
+	# 		   "left": [0,0,1,0], 
+	# 		   "shoot": [0,0,0,1]}
+	ACTIONS = [0,1,2,3]
 	TOTAL_EPISODES = define_DQN_params()['total_episodes']
 
 	def reset(self,episode):
@@ -72,13 +135,13 @@ class Space_env:
 			if self.player.posx <= 0:
 				self.player.posx = 0
 
-			if action == self.ACTIONS['left']:
+			if action == self.ACTIONS[0]:
 				self.player.posx-= self.player.velx*DT
-			elif action == self.ACTIONS['right']:
+			elif action == self.ACTIONS[1]:
 				self.player.posx+= self.player.velx*DT
-			elif action == self.ACTIONS['still']:
+			elif action == self.ACTIONS[2]:
 				pass
-			elif action == self.ACTIONS['shoot']:
+			elif action == self.ACTIONS[3]:
 				if frame%30==0:
 					self.player.shoot()
 
@@ -87,7 +150,7 @@ class Space_env:
 				if enemy_.is_alive:
 					enemy_.move()
 					enemy_.shoot(PROBABILITY_SHOOTING)
-					enemy_.collision(self.player.lasers)
+					enemy_.collision(self.player)
 					self.player.collision(enemy_)
 				else:
 					SCORE +=1
@@ -106,14 +169,16 @@ class Space_env:
 		# Rewards
 		reward = 0
 		for enemy_ in self.enemies:
-			if 0 < self.player.hit < self.player.health:			
+			if self.player.is_hit(enemy_):	# Player is hit		
 				reward = self.PLAYER_HIT_REWARD
-			elif not self.player.is_alive:
+			elif not self.player.is_alive:          # Player is killed
 				reward = self.DEATH_REWARD			
-			elif 0 < enemy_.hit < enemy_.health:
+			elif enemy_.is_hit(self.player):                   # Enemy is hit
 				reward = self.ENEMY_HIT_REWARD
-			elif not enemy_.is_alive:
+			elif not enemy_.is_alive:               # Enemy is killed
 				reward = self.ENEMY_KILLED_REWARD
+			else:
+				reward = self.PLAYER_ALIVE_REWARD   # Player safe
 	
 		# Done
 		done = False
@@ -201,32 +266,44 @@ def start_game():
 
 params = define_DQN_params()
 env = Space_env()
-# Agent = DQNAgent()
+agent = DQNAgent(params)
 
+total_rewards = []
 quit = False
 for episode in range(1,params['total_episodes']+1):
 	current_state = env.reset(episode)
 	done = False
+	episode_reward=0
 
-	frame=1
 	if quit:
 		pygame.quit()
 		sys.exit()
 
-	while not done:	
-		
+	# step = 1
+	frame=1 # frame enable discontinued shooting 
+	while not done:			
 		pygame.init()
-		action = choice(list(ACTIONS.keys()))
+		# if np.random.random() > params['epsilon']:
+		# 	action = np.argmax(agent.get_q_values(current_state))
+		# else:
+		# 	action = choice(env.ACTIONS)
+		action = choice(env.ACTIONS)
+
 		frame +=1
-		new_state,reward,done = env.step(ACTIONS[action],frame)
+		next_state,reward,done = env.step(action,frame)
+		episode_reward += reward
 		env.render()
+
+		transition = (current_state,action, reward, next_state,done)
+		# agent.update_replay_memory(transition)
+		# agent.train(done)
+
+		current_state = next_state
+
+
 		event = pygame.event.poll()
 		if event.type == pygame.QUIT:
 			quit=True
 			done = True
-
-	# with open('Game/SCORE.txt','a') as file:
-	# 	file.write('EPISODE: '+ str(EPISODE) + '\n')
-	# 	file.write(str(SCORE) + '\n')
 	
-	
+	# total_rewards.append(episode_reward)

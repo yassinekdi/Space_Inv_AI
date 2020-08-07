@@ -4,8 +4,16 @@ from Game.Objects import *
 
 def define_DQN_params():
 	params = {}
-	params['total_episodes']=5
-	params['epsilon'] = 1/2
+	params['total_episodes']=3
+	params['epsilon'] = 1
+	params['replay_memory_size']= 10_000
+	params['action_space'] = 4
+	params['state_space'] = 28
+	params['first_layer_size'] = 60
+	params['second_layer_size'] = 60
+	params['batch_size'] = 100
+	params['gamma'] = .99
+	params['update_target_every'] = 5
 	return params
 
 def touch(obj1,obj2):
