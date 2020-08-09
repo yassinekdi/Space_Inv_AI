@@ -20,7 +20,6 @@ PROBABILITY_SHOOTING = 1/200
 
 # DISPLAY
 FRAME_RATE=100
-# run = True
 DT = 1/FRAME_RATE
 
 # STATS
@@ -31,10 +30,6 @@ EPISODE = 1
 NB_MINIMUM_CLOSEST_LASERS = 4
 
 # ACTIONS
-# ACTIONS = {"still":[1,0,0,0],
-# 		   "right": [0,1,0,0],
-# 		   "left": [0,0,1,0], 
-# 		   "shoot": [0,0,0,1]}
 ACTIONS = [0,1,2,3]
 
 with open('Game/SCORE.txt','r') as file:
