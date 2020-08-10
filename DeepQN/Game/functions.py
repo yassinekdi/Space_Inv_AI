@@ -4,20 +4,22 @@ from Game.Objects import *
 
 def define_DQN_params():
 	params = {}
-	params['total_episodes']=5
-	params['save_weights_every']= 2
+	params['total_episodes']=3_000
+	params['save_weights_every']= 200
 	params['load_weights']=False
-	params['batch_size'] = 2
-	params['epsilon'] = 1
+	params['batch_size'] = 64
 	params['replay_memory_size']= 10_000
 	params['min_replay_memory_size']= 1_000
 	params['action_space'] = 4
-	params['state_space'] = 28
-	params['first_layer_size'] = 60
-	params['second_layer_size'] = 60
-	params['third_layer_size'] = 60
+	params['state_space'] = 32
+	params['first_layer_size'] = 150
+	params['second_layer_size'] = 150
+	params['third_layer_size'] = 150
 	params['gamma'] = .99
-	params['discount_epsilon'] = .99
+	params['epsilon'] = 1
+	params['learning_rate']=.0002
+	params['discount_epsilon'] = .999
+	params['minimum_epsilon_reached']= params['epsilon'] < .05
 	params['update_target_every'] = 5
 	params['weights_path'] = r'C:\Users\Cyala\PycharmProjects\RL\PyGame\DeepQN\weights.hdf5'
 	# result_(total_episode)_replay.._gamma_discount_update..

@@ -17,11 +17,14 @@ class DQNAgent:
 		self.batch_size = params['batch_size']
 		self.gamma = params['gamma']
 
+
 		self.input_layer = params['state_space']
 		self.first_layer = params['first_layer_size']
 		self.second_layer = params['second_layer_size']
 		self.third_layer = params['third_layer_size']
 		self.output_layer = params['action_space']
+		self.learning_rate = params['learning_rate']
+
 
 		self.model = self.new_model()
 
@@ -29,6 +32,7 @@ class DQNAgent:
 		self.target_model.set_weights(self.model.get_weights())
 		self.target_update_counter = 0
 		self.update_target_every = params['update_target_every']
+		self.loss_list = []
 
 	def new_model(self):
 		model = Sequential()
@@ -36,7 +40,7 @@ class DQNAgent:
 		model.add(Dense(units=self.second_layer, activation = 'relu'))
 		model.add(Dense(units=self.third_layer, activation = 'relu'))
 		model.add(Dense(units=self.output_layer, activation = 'softmax'))
-		model.compile(loss='mse', optimizer=Adam(self.gamma), metrics=["accuracy"])
+		model.compile(loss='mse', optimizer=Adam(self.learning_rate), metrics=["accuracy"])
 		return model
 
 	def update_replay_memory(self,transition):
@@ -79,7 +83,8 @@ class DQNAgent:
 
 			y.append(current_qs)
 
-		self.model.fit(current_states,np.array(y),batch_size=self.batch_size, verbose=0, shuffle=False)
+		fitting= self.model.fit(current_states,np.array(y),batch_size=self.batch_size, verbose=0, shuffle=False)
+		self.loss_list.append(fitting.history['loss'][0])
 
 		if termination:
 			self.target_update_counter+=1
@@ -90,11 +95,11 @@ class DQNAgent:
 
 class Space_env:
 	# Rewards
-	DEATH_REWARD = -1
-	PLAYER_HIT_REWARD = -.6
-	ENEMY_HIT_REWARD = .6
+	DEATH_REWARD = -1.5
+	PLAYER_HIT_REWARD = -.5
+	ENEMY_HIT_REWARD = .5
 	ENEMY_KILLED_REWARD = 1
-	PLAYER_ALIVE_REWARD = .3
+	PLAYER_ALIVE_REWARD = .001
 
 	# ACTIONS/STATES
 	STATE_SPACE = 14  # (enemy position - player position) 10 times (10 enemies) 
@@ -137,7 +142,7 @@ class Space_env:
 			elif action == self.ACTIONS[2]:
 				pass
 			elif action == self.ACTIONS[3]:
-				if frame%30==0:
+				if frame%20==0:
 					self.player.shoot()
 
 			# Enemy actions
@@ -166,8 +171,9 @@ class Space_env:
 				enemy_lasers.append(laser - self.player)
 		
 		closest_enemy_lasers = sorted(enemy_lasers[:NB_MINIMUM_CLOSEST_LASERS])
-		if len(closest_enemy_lasers)<NB_MINIMUM_CLOSEST_LASERS:
-			closest_enemy_lasers = [(0,WIN_HEIGHT)]*NB_MINIMUM_CLOSEST_LASERS
+		while len(closest_enemy_lasers)<NB_MINIMUM_CLOSEST_LASERS:
+			closest_enemy_lasers.append((0,WIN_HEIGHT))
+
 		new_observation = new_observation + closest_enemy_lasers
 
 		# Rewards
@@ -269,7 +275,7 @@ agent = DQNAgent(params)
 if params['load_weights']:
 	agent.model.load_weights(params['weights_path'])
 
-Export_results = pd.DataFrame(columns=['epsisode','reward','score','epsilon'])
+Export_results = pd.DataFrame(columns=['episode','reward','score','epsilon','loss'])
 
 quit = False
 for episode in range(1,params['total_episodes']+1):
@@ -308,7 +314,16 @@ for episode in range(1,params['total_episodes']+1):
 
 	if episode%params['save_weights_every']==0:
 		agent.model.save_weights(params['weights_path'])
-	Export_results.loc[episode-1] = [episode,episode_reward,SCORE,params['epsilon']]
-	params['epsilon']*=params['discount_epsilon']
+	if len(agent.loss_list)>0:
+		losses = np.mean(agent.loss_list)
+		agent.loss_list = []
+	else:
+		losses = 0
+	Export_results.loc[episode-1] = [episode,episode_reward,SCORE,params['epsilon'],losses]
+
+	if params['minimum_epsilon_reached']:
+		pass
+	else:
+		params['epsilon']*=params['discount_epsilon']
 
 	Export_results.to_excel(params['path_results'])
