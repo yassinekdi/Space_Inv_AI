@@ -13,10 +13,11 @@ GREEN = (154, 186, 182)
 YELLOW = (255, 250, 149)
 
 # PLAYERS
-NB_ENEMIES= 10
-ENEMY_HEALTH = 3
-PLAYER_HEALTH = 5
-PROBABILITY_SHOOTING = 1/200
+NB_ENEMIES= 3
+ENEMY_HEALTH = 4
+PLAYER_HEALTH = 10
+PROBABILITY_SHOOTING = 1/150
+NB_LASERS_TRACKED = 3
 
 # DISPLAY
 FRAME_RATE=100
@@ -27,7 +28,7 @@ HIGHEST_SCORE = 0
 EPISODE = 1
 
 # Environment
-NB_MINIMUM_CLOSEST_LASERS = 6
+NB_MINIMUM_CLOSEST_LASERS = 3
 
 # ACTIONS
 ACTIONS = [0,1,2,3]
@@ -46,6 +47,7 @@ pygame.display.set_caption('Spaceship Invaders')
 font = pygame.font.SysFont('cambria', 25,italic=True)
 font2 = pygame.font.SysFont('cambria', 25,bold=True)
 font3 = pygame.font.SysFont('cambria', 50,bold=True,italic=True)
+font4 = pygame.font.SysFont('cambria', 10,bold=False)
 
 # imgs
 player_img = pygame.image.load('Game/Imgs/spaceship.png')

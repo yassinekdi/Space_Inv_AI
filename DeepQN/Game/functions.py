@@ -1,23 +1,24 @@
 import pygame
+import random
 from Game.data import *
 from Game.Objects import *
 
 def define_DQN_params():
 	params = {}
-	params['total_episodes']=3_000
 	params['save_weights_every']= 200
-	params['load_weights']=False
 	params['batch_size'] = 64
-	params['replay_memory_size']= 10_000
 	params['min_replay_memory_size']= 1_000
+	params['replay_memory_size']= 10_000
+	params['total_episodes']=3_000
+	params['load_weights']=False
 	params['action_space'] = 4
-	params['state_space'] = 32
-	params['first_layer_size'] = 150
-	params['second_layer_size'] = 150
-	params['third_layer_size'] = 150
+	params['state_space'] = 13  # 6 + 1 + 4 + 10 + 10=31 > 3 + 1 + 3 + 3 + 3 = 13
+	params['first_layer_size'] = 100
+	params['second_layer_size'] = 100
+	params['third_layer_size'] = 100
 	params['gamma'] = .99
 	params['epsilon'] = 1
-	params['learning_rate']=.0002
+	params['learning_rate']=.0005
 	params['discount_epsilon'] = .999
 	params['minimum_epsilon_reached']= params['epsilon'] < .05
 	params['update_target_every'] = 5
@@ -38,3 +39,10 @@ def touch(obj1,obj2):
 def flatten_list(list_,norm):
 	# [(x1,y1),(x2,y2)] -> [x1,y1,x2,y2] / norm
 	return np.array([elt/norm for elt2 in list_ for elt in elt2])
+
+
+def get_lasers_positions(lasers,nb_lasers):
+	y_positions = [laser.posy/WIN_HEIGHT for laser in lasers][:nb_lasers]
+	while len(y_positions)<nb_lasers:
+		y_positions.append(0)
+	return y_positions

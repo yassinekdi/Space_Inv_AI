@@ -14,7 +14,7 @@ class Gameobject:
 		self.left = False
 		self.right = False
 		self.velx = 200
-		self.vely =200
+		self.vely = 200
 		self.is_alive=True
 		self.health = ENEMY_HEALTH	
 		self.hit = 0
@@ -26,20 +26,21 @@ class Gameobject:
 class player(Gameobject):
 	def __init__(self,*args,**kwargs):
 		super().__init__(*args,**kwargs)
-		self.lasers = []
+		# self.lasers = []
 
-	def shoot(self):
+	# def shoot(self):
 
-		X = self.posx + (self.width-laser_width)/2
-		Y = self.posy-laser_height
-		self.lasers.append(Gameobject(X,Y,laser_player_img))
+	# 	X = self.posx + (self.width-laser_width)/2
+	# 	Y = self.posy-laser_height
+	# 	self.lasers.append(Gameobject(X,Y,laser_player_img))
 
-	def draw(self,win):
-		for laser in self.lasers:
+	def draw(self,win,player_shoots):
+		for laser in player_shoots:
 			if laser.posy > 0:
-				laser.posy -= laser.vely*DT
+				laser.posy -= laser.vely*DT			
 			else:
-				self.lasers.remove(laser)
+				player_shoots.remove(laser)
+
 			win.blit(laser.img,(laser.posx,laser.posy))	
 		win.blit(self.img,(self.posx,self.posy))
 
@@ -58,10 +59,10 @@ class player(Gameobject):
 			self.posx+= self.velx*DT
 
 
-	def collision(self,enemy):
-		for laser in enemy.lasers:
+	def collision(self,enemy_lasers):
+		for laser in enemy_lasers:
 			if touch(laser,self):
-				enemy.lasers.remove(laser)
+				enemy_lasers.remove(laser)
 				self.hit +=1
 				if self.hit >= self.health:
 					self.is_alive = False
@@ -70,20 +71,14 @@ class player(Gameobject):
 class enemy(Gameobject):
 	def __init__(self,*args,**kwargs):
 		super().__init__(*args,**kwargs)
-		self.lasers = []
 
-	def shoot(self,probability):
-		if random.random() < probability:
-			X = self.posx + (self.width-laser_width)/2
-			Y = self.posy+enemy_height
-			self.lasers.append(Gameobject(X,Y,laser_enemy_img))
-
-	def draw(self,win):
-		for laser in self.lasers:
+	def draw(self,win,lasers):
+		for laser in lasers:
 			if laser.posy < WIN_HEIGHT:
 				laser.posy += laser.vely*DT
 			else:
-				self.lasers.remove(laser)
+				lasers.remove(laser)
+
 			win.blit(laser.img,(laser.posx,laser.posy))	
 		win.blit(self.img,(self.posx,self.posy))
 
@@ -100,9 +95,24 @@ class enemy(Gameobject):
 
 	def collision(self,laser_list):
 		for laser in laser_list:
-
 			if touch(laser,self):
 				laser_list.remove(laser)
 				self.hit +=1
 				if self.hit >= self.health:
 					self.is_alive = False
+
+def enemy_shoot(enemy,probability,lasers):
+	if random.random() < probability:
+		X = enemy.posx + (enemy.width-laser_width)/2
+		Y = enemy.posy+enemy_height
+		lasers.append(Gameobject(X,Y,laser_enemy_img))
+
+	return lasers
+
+def player_shoot(player,lasers):
+	X = player.posx + (player.width-laser_width)/2
+	Y = player.posy-laser_height
+	lasers.append(Gameobject(X,Y,laser_player_img))
+
+	return lasers
+

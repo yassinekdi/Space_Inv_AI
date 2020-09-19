@@ -1,4 +1,3 @@
-
 import pygame
 import sys
 from random import choice, sample
@@ -33,12 +32,13 @@ class DQNAgent:
 		self.target_update_counter = 0
 		self.update_target_every = params['update_target_every']
 		self.loss_list = []
+		self.meanq = []
 
 	def new_model(self):
 		model = Sequential()
 		model.add(Dense(units=self.first_layer, activation = 'relu', input_dim=self.input_layer))
 		model.add(Dense(units=self.second_layer, activation = 'relu'))
-		model.add(Dense(units=self.third_layer, activation = 'relu'))
+		# model.add(Dense(units=self.third_layer, activation = 'relu'))
 		model.add(Dense(units=self.output_layer, activation = 'softmax'))
 		model.compile(loss='mse', optimizer=Adam(self.learning_rate), metrics=["accuracy"])
 		return model
@@ -47,29 +47,30 @@ class DQNAgent:
 		self.replay_memory.append(transition)
 
 	def get_q_values(self,state):
-		return self.model.predict(state)
+		return self.model.predict(state)[0]
 
 	def train(self,termination):
 		if len(self.replay_memory) < params['min_replay_memory_size']:
 			return
 
 		batch = sample(self.replay_memory,self.batch_size)
-
-		# flatten_list transform [(x1,y1), (x2,y2),...] to [x1,y1,x2,y2...]
-		for transition in batch:
-			# some times transition[0] is already flat (no idea why), so :
-			if isinstance(transition[0][0],tuple):
-				current_states = np.array([flatten_list(transition[0],WIN_WIDTH) for transition in batch])
-			else:
-				current_states = np.array([transition[0] for transition in batch])
-		current_qs_values = self.model.predict(current_states)
 		
-		if isinstance(transition[3][0],tuple):
-			next_states = np.array([flatten_list(transition[3],WIN_WIDTH) for transition in batch])
-		else:
-			next_states = np.array([transition[3] for transition in batch])
-		next_qs_values = self.target_model.predict(next_states)
+		for transition in batch:		
+			current_states = np.array([transition[0] for transition in batch])
+			# some times transition[0] is already flat (no idea why), so :
+			# if isinstance(transition[0][0],tuple):				
+			# 	current_states = np.array([flatten_list(transition[0],WIN_WIDTH) for transition in batch])
+			# else:
+			# 	current_states = np.array([transition[0] for transition in batch])
 
+		current_qs_values = self.model.predict(current_states)
+		next_states = np.array([transition[3] for transition in batch])
+		# if isinstance(transition[3][0],tuple):
+		# 	next_states = np.array([flatten_list(transition[3],WIN_WIDTH) for transition in batch])
+		# else:
+		# 	next_states = np.array([transition[3] for transition in batch])
+
+		next_qs_values = self.target_model.predict(next_states)
 		y = []
 
 		for ind,(_,action,reward,next_state,done) in enumerate(batch):
@@ -82,9 +83,13 @@ class DQNAgent:
 			current_qs[action] = new_q
 
 			y.append(current_qs)
+			
+		
 
 		fitting= self.model.fit(current_states,np.array(y),batch_size=self.batch_size, verbose=0, shuffle=False)
 		self.loss_list.append(fitting.history['loss'][0])
+
+		self.meanq = [list(elt) for elt in y[10:15]]
 
 		if termination:
 			self.target_update_counter+=1
@@ -92,14 +97,13 @@ class DQNAgent:
 			self.target_model.set_weights(self.model.get_weights())
 			self.target_update_counter=0
 
-
 class Space_env:
 	# Rewards
-	DEATH_REWARD = -1.5
-	PLAYER_HIT_REWARD = -.5
-	ENEMY_HIT_REWARD = .5
-	ENEMY_KILLED_REWARD = 1
-	PLAYER_ALIVE_REWARD = .001
+	DEATH_REWARD = -1  #-10
+	PLAYER_HIT_REWARD = -.5  #-5
+	ENEMY_HIT_REWARD = .5   #5
+	ENEMY_KILLED_REWARD = 1  # 10
+	PLAYER_ALIVE_REWARD = .01  #1 
 
 	# ACTIONS/STATES
 	STATE_SPACE = 14  # (enemy position - player position) 10 times (10 enemies) 
@@ -111,18 +115,38 @@ class Space_env:
 	def reset(self,episode):
 
 		self.player,self.enemies = start_game() 
+		self.player_shoots = []
+		self.enemy_shoots = []
+
 
 		self.episode_step = episode
 
-		# Observation
-		  # enemy relative position
-		observation= []
-		for enemy_ in self.enemies:
-			observation.append(enemy_-self.player)
 
-		  # 4 closest lasers: values initialized by (100,100)
-		observation = observation + [(100,100)]*NB_MINIMUM_CLOSEST_LASERS
-		return flatten_list(observation,WIN_WIDTH)
+		# Observation
+		observation= []
+		  # enemy relative distance (10) > (3)
+		enemy_rel_dist=[]
+		for enemy_ in self.enemies:
+			enemy_rel_dist.append(enemy_-self.player)
+
+		  # 6 closest lasers: values initialized by 1 (6) > (3) 
+		closest_enemy_lasers = [1]*NB_MINIMUM_CLOSEST_LASERS
+
+		  # Player's position (1)
+		player_pos = [self.player.posx/WIN_WIDTH]
+
+		  # tracking 4 player's lasers (4) > (3) 
+		player_lasers_pos = [0]*NB_LASERS_TRACKED
+
+		  # direction of enemy: +1 if moving right, -1 left (10) > (3)
+		direction_enemy = [.5]*NB_ENEMIES
+
+		  # Vel of player (1)
+		# direction_player = [1]
+
+		observation = enemy_rel_dist + closest_enemy_lasers + player_pos + player_lasers_pos + direction_enemy
+
+		return observation
 
 	def step(self,action,frame):
 		global SCORE
@@ -143,47 +167,86 @@ class Space_env:
 				pass
 			elif action == self.ACTIONS[3]:
 				if frame%20==0:
-					self.player.shoot()
+					# self.player.shoot()
+					player_shoot(self.player,self.player_shoots)
+					# self.player.track_laser()
 
 			# Enemy actions
 			for enemy_ in self.enemies:
-				if enemy_.is_alive:
+				if enemy_.is_alive and enemy_.in_screen():
 					enemy_.move()
-					enemy_.shoot(PROBABILITY_SHOOTING)
-					enemy_.collision(self.player)
-					self.player.collision(enemy_)
+					# enemy_.shoot(PROBABILITY_SHOOTING)
+					enemy_shoot(enemy_,PROBABILITY_SHOOTING,self.enemy_shoots)
+					enemy_.collision(self.player_shoots)
+					self.player.collision(self.enemy_shoots)
 				else:
 					SCORE +=1
 					self.enemies.remove(enemy_)
 
 		# Update enemies number
 		while len(self.enemies)< NB_ENEMIES:
-			new_enemy = enemy(randint(WIN_WIDTH),-enemy_height,enemy_img)
+			new_enemy = enemy(randint(WIN_WIDTH),-randint(enemy_height),enemy_img)
 			new_enemy.vely = 15
 			self.enemies.append(new_enemy)
 
+
 		# Update observations
 		new_observation= []
-		enemy_lasers = []
-		for enemy_ in self.enemies:
-			new_observation.append(enemy_-self.player)
-			for laser in enemy_.lasers:
-				enemy_lasers.append(laser - self.player)
-		
-		closest_enemy_lasers = sorted(enemy_lasers[:NB_MINIMUM_CLOSEST_LASERS])
-		while len(closest_enemy_lasers)<NB_MINIMUM_CLOSEST_LASERS:
-			closest_enemy_lasers.append((0,WIN_HEIGHT))
 
-		new_observation = new_observation + closest_enemy_lasers
+		   # Enemy relative distance (10)
+		enemy_lasers_positions = []
+		enemy_rel_dist=[]
+		for enemy_ in self.enemies:
+			enemy_rel_dist.append(enemy_-self.player)			
+		for laser in self.enemy_shoots:
+			enemy_lasers_positions.append(self.player - laser)
+				
+		   # Closest enemy lasers (6) > (3)
+		# print('ENEMY LASERS POSITION : ', enemy_lasers_positions)
+		closest_enemy_lasers = self.player.closest_lasers(enemy_lasers_positions,NB_MINIMUM_CLOSEST_LASERS)
+		# closest_enemy_lasers = get_lasers_positions(enemy_shoots, NB_MINIMUM_CLOSEST_LASERS)
+		while len(closest_enemy_lasers)<NB_MINIMUM_CLOSEST_LASERS:
+			closest_enemy_lasers.append(1)
+
+
+		# print('closest_enemy_lasers : ', closest_enemy_lasers)
+		# print(' ')
+		   # Player's position (1)
+		player_pos = [self.player.posx/WIN_WIDTH]
+
+		   # Tracking 4 player's lasers (4) > (3)
+		player_lasers_pos = get_lasers_positions(self.player_shoots, NB_LASERS_TRACKED)
+
+		   #direction of enemy +1 if moving right, -1 left (10)
+		direction_enemy = [np.sign(enemy_.velx)/2 for enemy_ in self.enemies]
+
+		new_observation = enemy_rel_dist + closest_enemy_lasers + player_pos + player_lasers_pos + direction_enemy
+
+		# print('enemy_rel_dist ', len(enemy_rel_dist))
+		# print('closest_enemy_lasers ', len(closest_enemy_lasers))
+		# print('player_pos ', len(player_pos))
+		# print('player_lasers_pos ', len(player_lasers_pos))
+		# print('direction_enemy ', len(direction_enemy))
+
+		if frame%5000:			
+			with open('enemy_rel_dist.txt','a') as f:
+					f.write(str(enemy_rel_dist)+'\n')
+
+			with open('closest_enemy_lasers.txt','a') as f:
+					f.write(str(closest_enemy_lasers)+'\n')
+
+			with open('player_lasers_pos.txt','a') as f:
+					f.write(str(player_lasers_pos)+'\n')
+
 
 		# Rewards
 		reward = 0
 		for enemy_ in self.enemies:
-			if self.player.is_hit(enemy_):	# Player is hit		
+			if self.player.is_hit(self.enemy_shoots):	# Player is hit		
 				reward = self.PLAYER_HIT_REWARD
 			elif not self.player.is_alive:          # Player is killed
 				reward = self.DEATH_REWARD			
-			elif enemy_.is_hit(self.player):                   # Enemy is hit
+			elif enemy_.is_hit(self.player_shoots):                   # Enemy is hit
 				reward = self.ENEMY_HIT_REWARD
 			elif not enemy_.is_alive:               # Enemy is killed
 				reward = self.ENEMY_KILLED_REWARD
@@ -199,26 +262,28 @@ class Space_env:
 				file.write('EPISODE: '+ str(EPISODE) + '\n')
 				file.write(str(SCORE) + '\n')
 
-		return flatten_list(new_observation,WIN_WIDTH), reward, done
+		options = []
+		return new_observation, reward, done,options
 
-	def render(self):
-		redrawGameWindow(win,self.player,self.enemies,episode)
+	def render(self,options=[]):
+		redrawGameWindow(win,self.player,self.enemies,episode,self.player_shoots,self.enemy_shoots,options)
 
 
-def redrawGameWindow(win,agent,enemies,episode):
+def redrawGameWindow(win,agent,enemies,episode, player_shoots, enemy_shoots,options=[]):
 	global SCORE
 	win.blit(BG,(0,0))
 	if agent.is_alive:		
-		agent.draw(win)
+		agent.draw(win,player_shoots)
 
 		for enemy in enemies:
-			enemy.draw(win)
+			enemy.draw(win, enemy_shoots)
 
 		# STATS
-		words = ['Health: ','Score: ', 'High score: ', 'Episode']
+		words = ['Health: ','Score: ', 'High score: ', 'Episode','nada']
 		words_x = WIN_WIDTH + 10
 		words_y = []
-		words2 = [str(agent.health-agent.hit),str(SCORE),str(HIGHEST_SCORE),str(episode)]
+		options = [round(elt,2) for elt in options]
+		words2 = [str(agent.health-agent.hit),str(SCORE),str(HIGHEST_SCORE),str(episode),str(options)]
 		words2_x = words_x + 10
 		words2_y = []
 
@@ -229,8 +294,10 @@ def redrawGameWindow(win,agent,enemies,episode):
 			words2_y.append(y+25)
 			i+=1
 
+
 		texts = [font.render(txt, 1, WHITE) for txt in words]
 		texts2 = [font2.render(txt, 1, GREEN) for txt in words2]
+		texts2[-1] = font4.render(words2[-1],1,GREEN)
 		[win.blit(txt, (words_x, y)) for txt,y in zip(texts,words_y)]
 		[win.blit(txt, (words2_x, y)) for txt,y in zip(texts2,words2_y)]
 
@@ -259,10 +326,9 @@ def start_game():
 
 	agent = player((WIN_WIDTH-player_width)/2,WIN_HEIGHT-player_height, player_img)
 	agent.health = PLAYER_HEALTH
-
 	enemies = []
 	for _ in range(NB_ENEMIES):
-		new_enemy = enemy(randint(WIN_WIDTH),-enemy_height,enemy_img)
+		new_enemy = enemy(randint(WIN_WIDTH),-randint(enemy_height),enemy_img)
 		new_enemy.vely = 15
 		enemies.append(new_enemy)
 	return (agent,enemies)
@@ -272,6 +338,7 @@ def start_game():
 params = define_DQN_params()
 env = Space_env()
 agent = DQNAgent(params)
+
 if params['load_weights']:
 	agent.model.load_weights(params['weights_path'])
 
@@ -283,6 +350,8 @@ for episode in range(1,params['total_episodes']+1):
 	done = False
 	episode_reward=0
 
+	# enemy_shoots = []
+	# player_shoots = []
 	if quit:
 		pygame.quit()
 		sys.exit()
@@ -297,13 +366,21 @@ for episode in range(1,params['total_episodes']+1):
 
 		frame +=1
 
-		next_state,reward,done = env.step(action,frame)
+		next_state,reward,done,options = env.step(action,frame)
 		episode_reward += reward
-		env.render()
+		env.render(options)
 
 		transition = (current_state,action, reward, next_state,done)
-		agent.update_replay_memory(transition)
+
+		if frame%10==0:
+			agent.update_replay_memory(transition)
+
+		if frame%5000==0:
+			with open('STATES.txt','a') as f:
+					f.write(str(transition[0])+'   '+str(transition[1])+'   '+str(transition[2])+'\n')
+			
 		agent.train(done)
+		meanQ = np.mean(agent.get_q_values(np.array([current_state,])))
 
 		current_state = next_state
 
@@ -311,6 +388,10 @@ for episode in range(1,params['total_episodes']+1):
 		if event.type == pygame.QUIT:
 			quit=True
 			done = True
+
+	if len(agent.replay_memory)>params['min_replay_memory_size']:
+		with open('meanQ.txt','a') as file:
+				file.write(str(agent.meanq)+'\n')
 
 	if episode%params['save_weights_every']==0:
 		agent.model.save_weights(params['weights_path'])

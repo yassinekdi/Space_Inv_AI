@@ -4,30 +4,30 @@ from Objects import *
 from functions import *
 
 
-def redrawGameWindow(win,laser_on,agent,enemies):
+def redrawGameWindow(win,laser_on,agent,enemies,player_shoots,enemy_shoots):
 	global SCORE
 
 	win.blit(BG,(0,0))
 	if agent.is_alive:
 		agent.move()
-
 		probability_shooting = 1/200
 		for enemy in enemies:
 			if enemy.is_alive:
 				enemy.move()
-				enemy.shoot(probability_shooting)
-				enemy.collision(agent.lasers)
-				agent.collision(enemy)
+				# enemy.shoot(probability_shooting)
+				enemy_shoot(enemy,probability_shooting,enemy_shoots)
+				enemy.collision(player_shoots)
+				agent.collision(enemy_shoots)
 			else:
 				SCORE +=1
 				enemies.remove(enemy)
 		if laser_on:
-			agent.shoot()	
-
-		agent.draw(win)
+			# agent.shoot()	
+			player_shoot(agent,player_shoots)
+		agent.draw(win,player_shoots)
 
 		for enemy in enemies:
-			enemy.draw(win)
+			enemy.draw(win,enemy_shoots)
 
 		# STATS
 		words = ['Health: ','Score: ', 'High score: ']
@@ -96,7 +96,8 @@ def start_game():
 # Mainloop ----------------------------------
 
 Me,Enemies = start_game()
-
+enemy_shoots = []
+player_shoots = []
 while run:
 	laser_on = False
 	keys = pygame.key.get_pressed()
@@ -114,13 +115,12 @@ while run:
 		new_enemy.vely = 15
 		Enemies.append(new_enemy)
 
-	if not redrawGameWindow(win,laser_on,Me,Enemies):
+	if not redrawGameWindow(win,laser_on,Me,Enemies, player_shoots, enemy_shoots):
 		with open('SCORE.txt','a') as file:
 			file.write('EPISODE: '+ str(EPISODE) + '\n')
 			file.write(str(SCORE) + '\n')
 
 		Me,Enemies=start_game()
-
 
 with open('SCORE.txt','a') as file:
 	file.write('EPISODE: '+ str(EPISODE) + '\n')
