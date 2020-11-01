@@ -17,6 +17,7 @@ class Gameobject:
 		self.is_alive=True
 		self.health = ENEMY_HEALTH	
 		self.hit = 0
+		self.hit_cond = False
 
 	def __sub__(self, other):
 		sign = np.sign(other.posx-self.posx)
@@ -24,12 +25,13 @@ class Gameobject:
 		# return (sign*(other.posx-self.posx), other.posy - self.posy)
 
 
-	def is_hit(self,lasers):
-		for laser in lasers:
-			if touch(laser,self):
-				return True
-			else:
-				return False
+	# def is_hit(self,lasers):
+	# 	for laser in lasers:			
+	# 		if touch(laser,self):
+	# 			# print('TOUCHED')
+	# 			return True
+	# 		else:
+	# 			return False
 
 class player(Gameobject):
 	def __init__(self,*args,**kwargs):
@@ -45,7 +47,7 @@ class player(Gameobject):
 	def draw(self,win,player_shoots):
 		for laser in player_shoots:
 			if laser.posy > 0:
-				laser.posy -= laser.vely*DT
+				laser.posy -= laser.vely*DT*2
 			else:
 				player_shoots.remove(laser)
 			win.blit(laser.img,(laser.posx,laser.posy))	
@@ -56,6 +58,7 @@ class player(Gameobject):
 			if touch(laser,self):
 				enemy_lasers.remove(laser)
 				self.hit +=1
+				self.hit_cond=True
 				if self.hit >= self.health:
 					self.is_alive = False
 					self.posx = 1000000
@@ -118,6 +121,7 @@ class enemy(Gameobject):
 					# player.lasers_tracked.remove(laser)
 				laser_list.remove(laser)
 				self.hit +=1
+				self.hit_cond=True
 				if self.hit >= self.health:
 					self.is_alive = False
 

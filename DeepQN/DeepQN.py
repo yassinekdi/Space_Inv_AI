@@ -102,13 +102,13 @@ class Space_env:
 	DEATH_REWARD = -1  #-10
 	PLAYER_HIT_REWARD = -.5  #-5
 	ENEMY_HIT_REWARD = .5   #5
-	ENEMY_KILLED_REWARD = 1  # 10
-	PLAYER_ALIVE_REWARD = .01  #1 
+	ENEMY_KILLED_REWARD = 1  # 10 - value given also in the main bloc
+	PLAYER_ALIVE_REWARD = .0001  #1 
 
 	# ACTIONS/STATES
-	STATE_SPACE = 14  # (enemy position - player position) 10 times (10 enemies) 
+	# STATE_SPACE = 14  # (enemy position - player position) 10 times (10 enemies) 
 					  # + 4 min(laser enemy position - player position) (the 4 closest lasers)
-	ACTION_SPACE = 4 # Left right still shoot
+	# ACTION_SPACE = 4 # Left right still shoot
 	ACTIONS = [0,1,2,3]
 	TOTAL_EPISODES = define_DQN_params()['total_episodes']
 
@@ -124,21 +124,21 @@ class Space_env:
 
 		# Observation
 		observation= []
-		  # enemy relative distance (10) > (3)
+		  # enemy relative distance (10) > (7)
 		enemy_rel_dist=[]
 		for enemy_ in self.enemies:
 			enemy_rel_dist.append(enemy_-self.player)
 
-		  # 6 closest lasers: values initialized by 1 (6) > (3) 
+		  # 6 closest lasers: values initialized by 1 (6) > (6) 
 		closest_enemy_lasers = [1]*NB_MINIMUM_CLOSEST_LASERS
 
 		  # Player's position (1)
 		player_pos = [self.player.posx/WIN_WIDTH]
 
-		  # tracking 4 player's lasers (4) > (3) 
+		  # tracking 4 player's lasers (4) > (2) 
 		player_lasers_pos = [0]*NB_LASERS_TRACKED
 
-		  # direction of enemy: +1 if moving right, -1 left (10) > (3)
+		  # direction of enemy: +1 if moving right, -1 left (10) > (7)
 		direction_enemy = [.5]*NB_ENEMIES
 
 		  # Vel of player (1)
@@ -195,13 +195,15 @@ class Space_env:
 
 		   # Enemy relative distance (10)
 		enemy_lasers_positions = []
+		las=[]
 		enemy_rel_dist=[]
 		for enemy_ in self.enemies:
 			enemy_rel_dist.append(enemy_-self.player)			
 		for laser in self.enemy_shoots:
 			enemy_lasers_positions.append(self.player - laser)
+			las.append(laser.posy)
 				
-		   # Closest enemy lasers (6) > (3)
+		   # Closest enemy lasers (6) 
 		# print('ENEMY LASERS POSITION : ', enemy_lasers_positions)
 		closest_enemy_lasers = self.player.closest_lasers(enemy_lasers_positions,NB_MINIMUM_CLOSEST_LASERS)
 		# closest_enemy_lasers = get_lasers_positions(enemy_shoots, NB_MINIMUM_CLOSEST_LASERS)
@@ -209,50 +211,75 @@ class Space_env:
 			closest_enemy_lasers.append(1)
 
 
-		# print('closest_enemy_lasers : ', closest_enemy_lasers)
-		# print(' ')
 		   # Player's position (1)
 		player_pos = [self.player.posx/WIN_WIDTH]
 
-		   # Tracking 4 player's lasers (4) > (3)
-		player_lasers_pos = get_lasers_positions(self.player_shoots, NB_LASERS_TRACKED)
-
+		   # Tracking 4 player's lasers (4)
+		player_lasers_pos = get_lasers_positions(self.player,self.player_shoots, NB_LASERS_TRACKED)
+		# player_lasers_pos = get_lasers_positions(self.player_shoots, NB_LASERS_TRACKED)
 		   #direction of enemy +1 if moving right, -1 left (10)
 		direction_enemy = [np.sign(enemy_.velx)/2 for enemy_ in self.enemies]
 
 		new_observation = enemy_rel_dist + closest_enemy_lasers + player_pos + player_lasers_pos + direction_enemy
 
-		# print('enemy_rel_dist ', len(enemy_rel_dist))
-		# print('closest_enemy_lasers ', len(closest_enemy_lasers))
-		# print('player_pos ', len(player_pos))
-		# print('player_lasers_pos ', len(player_lasers_pos))
-		# print('direction_enemy ', len(direction_enemy))
+		# if frame%500==0:			
+		# 	with open('enemy_rel_dist.txt','a') as f:
+		# 			f.write(str(enemy_rel_dist)+'\n')
 
-		if frame%5000:			
-			with open('enemy_rel_dist.txt','a') as f:
-					f.write(str(enemy_rel_dist)+'\n')
+		# 	with open('closest_enemy_lasers.txt','a') as f:
+		# 			f.write(str(closest_enemy_lasers)+'\n')
 
-			with open('closest_enemy_lasers.txt','a') as f:
-					f.write(str(closest_enemy_lasers)+'\n')
-
-			with open('player_lasers_pos.txt','a') as f:
-					f.write(str(player_lasers_pos)+'\n')
+		# 	with open('player_lasers_pos.txt','a') as f:
+		# 			f.write(str(player_lasers_pos)+'\n')
 
 
 		# Rewards
 		reward = 0
+		reward_ = ''
+		if self.player.is_alive:
+			reward = self.PLAYER_ALIVE_REWARD   # Player safe
+			reward_ = 'PLAYER ALIVE'	
+		else: # Player is killed
+			reward = self.DEATH_REWARD	
+			reward_ = 'PLAYER IS KILLED'
+
 		for enemy_ in self.enemies:
-			if self.player.is_hit(self.enemy_shoots):	# Player is hit		
-				reward = self.PLAYER_HIT_REWARD
-			elif not self.player.is_alive:          # Player is killed
-				reward = self.DEATH_REWARD			
-			elif enemy_.is_hit(self.player_shoots):                   # Enemy is hit
-				reward = self.ENEMY_HIT_REWARD
-			elif not enemy_.is_alive:               # Enemy is killed
-				reward = self.ENEMY_KILLED_REWARD
-			else:
-				reward = self.PLAYER_ALIVE_REWARD   # Player safe
-	
+			# if self.player.is_hit(self.enemy_shoots):	# Player is hit		
+			# 	reward = self.PLAYER_HIT_REWARD
+			# 	reward_ = 'PLAYER IS HIT'
+			# elif not self.player.is_alive:          # Player is killed
+			# 	reward = self.DEATH_REWARD	
+			# 	reward_ = 'PLAYER IS KILLED'		
+			# elif enemy_.is_hit(self.player_shoots):                   # Enemy is hit
+			# 	reward = self.ENEMY_HIT_REWARD
+			# 	reward_ = 'ENEMY IS HIT'		
+			# elif not enemy_.is_alive:               # Enemy is killed
+			# 	reward = self.ENEMY_KILLED_REWARD				
+			# 	reward_ = 'ENEMY IS KILLED'		
+			# else:
+			# 	reward = self.PLAYER_ALIVE_REWARD   # Player safe
+			# 	reward_ = 'PLAYER ALIVE'		
+				
+		
+
+			# if self.player.is_hit(self.enemy_shoots):	# Player is hit		
+			if self.player.hit_cond:
+				for _ in range(self.player.hit):
+					reward += self.PLAYER_HIT_REWARD
+				reward_ = 'PLAYER IS HIT', reward
+				self.player.hit_cond = False
+		
+			# if enemy_.is_hit(self.player_shoots):                   # Enemy is hit
+			if enemy_.hit_cond:
+				for _ in range(enemy_.hit):
+					reward += self.ENEMY_HIT_REWARD
+				reward_ = 'ENEMY IS HIT ', reward	
+				enemy_.hit_cond = False
+
+			if not enemy_.is_alive:               # Enemy is killed
+				reward = self.ENEMY_KILLED_REWARD				
+				reward_ = 'ENEMY IS KILLED', reward
+				
 		# Done
 		done = False
 		if reward == self.DEATH_REWARD or self.episode_step > self.TOTAL_EPISODES:
@@ -262,7 +289,8 @@ class Space_env:
 				file.write('EPISODE: '+ str(EPISODE) + '\n')
 				file.write(str(SCORE) + '\n')
 
-		options = []
+		options=[[reward_]]
+		# options= ['']
 		return new_observation, reward, done,options
 
 	def render(self,options=[]):
@@ -272,6 +300,10 @@ class Space_env:
 def redrawGameWindow(win,agent,enemies,episode, player_shoots, enemy_shoots,options=[]):
 	global SCORE
 	win.blit(BG,(0,0))
+	# keys = pygame.key.get_pressed()
+	# if keys[pygame.K_t]:
+	# 	done = True
+
 	if agent.is_alive:		
 		agent.draw(win,player_shoots)
 
@@ -279,11 +311,11 @@ def redrawGameWindow(win,agent,enemies,episode, player_shoots, enemy_shoots,opti
 			enemy.draw(win, enemy_shoots)
 
 		# STATS
-		words = ['Health: ','Score: ', 'High score: ', 'Episode','nada']
+		words = ['Health: ','Score: ', 'High score: ', 'Episode','reward']
 		words_x = WIN_WIDTH + 10
 		words_y = []
-		options = [round(elt,2) for elt in options]
-		words2 = [str(agent.health-agent.hit),str(SCORE),str(HIGHEST_SCORE),str(episode),str(options)]
+		# options = [round(elt,2) for elt in options]
+		words2 = [str(agent.health-agent.hit),str(SCORE),str(HIGHEST_SCORE),str(episode),str(options[0])]
 		words2_x = words_x + 10
 		words2_y = []
 
@@ -357,7 +389,12 @@ for episode in range(1,params['total_episodes']+1):
 		sys.exit()
 
 	frame=1 # frame enable discontinued shooting 
-	while not done:			
+	# with open('debug.txt', 'a') as f:
+		# f.write('EPISODE : ' + str(episode)+'\n')
+	debug_iter=0
+	reward_bugs = []
+	while not done:	
+		debug_iter+=1
 		pygame.init()
 		if np.random.random() > params['epsilon']:
 			action = np.argmax(agent.get_q_values(np.array([current_state,])))
@@ -368,18 +405,51 @@ for episode in range(1,params['total_episodes']+1):
 
 		next_state,reward,done,options = env.step(action,frame)
 		episode_reward += reward
+		reward_bugs.append(reward)
+
+		# To handle bug of Game Over & only enemy killed rewards given
+		if len(reward_bugs)==20:
+			check_list=[elt==1 for elt in reward_bugs]
+			if False in check_list:
+				reward_bugs = []
+			else:
+				print('BUG FIXED')
+				done = True
+
+		# DEBUG ITER
+		
+		# if frame%1000==0:
+			# var='w'
+		# else:
+			# var = 'a'
+		# with open('debug.txt', var) as f:
+			# f.write('\n')
+			# f.write('A : debug_iter : REWARD : '+ str(reward)  + 'REWARD_ ' + str(options) + ' DEBUG ITER '+ str(debug_iter) + '\n')
+
+		if done:
+			with open('debug.txt','a') as f:
+				f.write('DONE:  '+str(done) + '\n')
+				f.write(' \n')
+
 		env.render(options)
 
 		transition = (current_state,action, reward, next_state,done)
 
+		# DEBUG ITER
+		# with open('debug.txt', var) as f:
+			# f.write('BBBBB' +'\n')		
 		if frame%10==0:
 			agent.update_replay_memory(transition)
 
-		if frame%5000==0:
+		if frame%500==0:
 			with open('STATES.txt','a') as f:
 					f.write(str(transition[0])+'   '+str(transition[1])+'   '+str(transition[2])+'\n')
-			
+		
+
 		agent.train(done)
+		# DEBUG ITER
+		# with open('debug.txt', var) as f:
+			# f.write('CCCCCC' +'\n')
 		meanQ = np.mean(agent.get_q_values(np.array([current_state,])))
 
 		current_state = next_state
@@ -389,9 +459,12 @@ for episode in range(1,params['total_episodes']+1):
 			quit=True
 			done = True
 
-	if len(agent.replay_memory)>params['min_replay_memory_size']:
-		with open('meanQ.txt','a') as file:
-				file.write(str(agent.meanq)+'\n')
+		# DEBUG ITER
+		# with open('debug.txt', var) as f:
+			# f.write('DDDDDD' +'\n')
+	# if len(agent.replay_memory)>params['min_replay_memory_size']:
+	# 	with open('meanQ.txt','a') as file:
+	# 			file.write(str(agent.meanq)+'\n')
 
 	if episode%params['save_weights_every']==0:
 		agent.model.save_weights(params['weights_path'])

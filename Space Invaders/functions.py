@@ -1,6 +1,6 @@
 import pygame
-from data import *
 from Objects import *
+from data import *
 
 
 def touch(obj1,obj2):
@@ -10,4 +10,5 @@ def touch(obj1,obj2):
 	if Cx and Cy:
 		return True
 	return False
+
 
